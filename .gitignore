@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Google Cloud Key
+src/creds.json
