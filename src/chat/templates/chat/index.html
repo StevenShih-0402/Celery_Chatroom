@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room Lobby</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #fafafa; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 320px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #dbdbdb; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #0095f6; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        button:hover { background-color: #0085d6; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="margin-bottom: 20px;">進入聊天室</h2>
+
+        <div style="text-align: left; font-size: 0.9rem; color: #666;">聊天室名稱</div>
+        <input id="room-name-input" type="text" value="testroom">
+
+        <div style="text-align: left; font-size: 0.9rem; color: #666; margin-top: 10px;">你的暱稱</div>
+        <input id="username-input" type="text" value="User1">
+
+        <button id="room-name-submit">進入</button>
+    </div>
+
+    <script>
+        document.querySelector('#room-name-input').focus();
+
+        // 按 Enter 也可以送出
+        document.querySelector('#room-name-input').onkeyup = function(e) {
+            if (e.key === 'Enter') document.querySelector('#room-name-submit').click();
+        };
+
+        document.querySelector('#room-name-submit').onclick = function(e) {
+            var roomName = document.querySelector('#room-name-input').value;
+            var username = document.querySelector('#username-input').value;
+
+            if(roomName && username) {
+                // 跳轉並帶上 username 參數
+                window.location.href = '/chat/' + roomName + '/?username=' + username;
+            } else {
+                alert("請輸入完整資訊");
+            }
+        };
+    </script>
+</body>
+</html>

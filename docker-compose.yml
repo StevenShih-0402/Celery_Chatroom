@@ -1,0 +1,18 @@
+volumes:
+  redis_data:
+
+services:
+  ##################################################################
+  # [基礎設施] 訊息佇列服務 (Redis) - 作為 Celery Broker
+  # 本地測試需要公開端點，否則其他 API 請求 Redis 暫存資料會被拒絕。
+  # 僅限此專案使用，其他專案若要連線這個 Redis，會回報 kombu.exceptions.OperationalError: [WinError 10061] 無法連線，因為目標電腦拒絕連線。
+  ##################################################################
+  redis:
+    image: redis:7-alpine
+    container_name: redis_chatroom
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: [ "redis-server", "--appendonly", "yes" ]
+    restart: always

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - {{ room_name }}</title>
+    <style>
+        /* --- Instagram 風格 CSS --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #fafafa; height: 100vh; display: flex; justify-content: center; align-items: center; }
+
+        .chat-container {
+            width: 100%; max-width: 400px; height: 100%; max-height: 800px;
+            background-color: #fff; display: flex; flex-direction: column;
+            border: 1px solid #dbdbdb;
+        }
+        @media (min-width: 768px) {
+            .chat-container { height: 90vh; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        }
+
+        /* Header */
+        .header {
+            padding: 16px; border-bottom: 1px solid #efefef; display: flex; align-items: center;
+            background: #fff; z-index: 10;
+            border-top-left-radius: 12px; border-top-right-radius: 12px;
+        }
+        .header h1 { font-size: 16px; font-weight: 600; margin-left: 10px; }
+        .avatar-placeholder { width: 30px; height: 30px; border-radius: 50%; background: #ddd; }
+
+        /* Messages Area */
+        .messages-area {
+            flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+            background-color: #fff; scrollbar-width: thin;
+        }
+
+        /* Message Bubbles */
+        .message {
+            max-width: 70%; padding: 10px 14px; font-size: 14px; line-height: 1.4;
+            border-radius: 22px; position: relative; word-wrap: break-word;
+        }
+        /* 對方 (灰底) */
+        .message.other { align-self: flex-start; background-color: #efefef; color: #262626; border-bottom-left-radius: 4px; }
+        /* 自己 (藍底漸層) */
+        .message.self { align-self: flex-end; background: linear-gradient(to right, #3797f0, #0084ff); color: white; border-bottom-right-radius: 4px; }
+
+        .meta { font-size: 10px; margin-top: 4px; opacity: 0.7; }
+        .self .meta { text-align: right; color: rgba(255,255,255,0.9); }
+        .other .meta { text-align: left; color: #8e8e8e; }
+        .sender-name { font-size: 10px; color: #888; margin-bottom: 2px; margin-left: 4px; }
+
+        /* Input Area */
+        .input-area { padding: 12px; display: flex; align-items: center; border-top: 1px solid #efefef; }
+        .input-wrapper {
+            flex: 1; background-color: #efefef; border-radius: 22px; padding: 8px 16px;
+            display: flex; align-items: center;
+        }
+
+        /* Django Form Widget 樣式會直接套用，這裡設定按鈕 */
+        button#chat-message-submit {
+            border: none; background: transparent; color: #0095f6; font-weight: 600;
+            font-size: 14px; cursor: pointer; margin-left: 8px; min-width: 40px;
+        }
+        button#chat-message-submit:hover { color: #00376b; }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="header">
+            <div class="avatar-placeholder"></div>
+            <h1>{{ room_name }}</h1>
+        </div>
+
+        <div id="chat-log" class="messages-area">
+            <div style="text-align: center; color: #aaa; font-size: 12px; margin-top: 20px;">
+                已以 <b>{{ username }}</b> 身分連線
+            </div>
+            <!-- 訊息會動態插入這裡 -->
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <!--
+                    ★ 關鍵點：使用 Django Template Tag 渲染表單欄位
+                    這會生成 <input type="text" id="chat-message-input" ...>
+                -->
+                {{ form.message }}
+
+                <button id="chat-message-submit">傳送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 將後端變數安全地轉為 JSON 供 JS 使用 -->
+    {{ room_name|json_script:"room-name" }}
+    {{ username|json_script:"user-name" }}
+
+    <script>
+        // 1. 讀取 Django 傳過來的資料
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+        const myUsername = JSON.parse(document.getElementById('user-name').textContent);
+
+        // 2. 建立 WebSocket 連線
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
+        );
+
+        // 3. 監聽: 當收到後端訊息時
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const message = data.message;
+            const sender = data.username;
+            const time = data.time.split(' ')[1].slice(0, 5); // 只取時間 HH:MM
+
+            const chatLog = document.querySelector('#chat-log');
+            const messageDiv = document.createElement('div');
+
+            // 判斷發送者是否為自己，決定樣式
+            const isSelf = (sender === myUsername);
+            messageDiv.classList.add('message', isSelf ? 'self' : 'other');
+
+            let contentHtml = '';
+            if (!isSelf) {
+                contentHtml += `<div class="sender-name">${sender}</div>`;
+            }
+            contentHtml += `${message}<div class="meta">${time}</div>`;
+
+            messageDiv.innerHTML = contentHtml;
+            chatLog.appendChild(messageDiv);
+
+            // 自動捲動到底部
+            chatLog.scrollTop = chatLog.scrollHeight;
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+            alert("連線已中斷，請重新整理頁面");
+        };
+
+        // 4. 處理輸入框與發送邏輯
+        const inputDom = document.querySelector('#chat-message-input'); // 這個 ID 是在 forms.py 定義的
+        inputDom.focus();
+
+        inputDom.onkeyup = function(e) {
+            if (e.key === 'Enter') {
+                document.querySelector('#chat-message-submit').click();
+            }
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const message = inputDom.value;
+            if (message.trim() !== "") {
+                // 發送給後端 (Consumers)
+                chatSocket.send(JSON.stringify({
+                    'message': message,
+                    'username': myUsername
+                }));
+                inputDom.value = '';
+            }
+        };
+    </script>
+</body>
+</html>

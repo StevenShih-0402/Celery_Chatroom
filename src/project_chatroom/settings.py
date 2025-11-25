@@ -31,12 +31,14 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',                             # Websocket (需在 Django 內建 App 之前載入)
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'chat'                                  # 自行建立的 APP
 ]
 
 MIDDLEWARE = [
@@ -54,10 +56,12 @@ ROOT_URLCONF = 'project_chatroom.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        # DIRS 保持空白，讓 Django 自動尋找每個 App 內部的 'templates' 資料夾
         'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -66,6 +70,8 @@ TEMPLATES = [
     },
 ]
 
+# 設定 ASGI 應用程式
+ASGI_APPLICATION = 'project_chatroom.asgi.application'
 WSGI_APPLICATION = 'project_chatroom.wsgi.application'
 
 
@@ -102,12 +108,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+# 修改語言和時區設定
+LANGUAGE_CODE = 'zh-hant'
+TIME_ZONE = 'Asia/Taipei'
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -120,3 +124,23 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- Channels & Redis 設定 ---
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+
+# --- Celery 設定 ---
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+# --- Google Sheet 設定 (請確保檔案存在) ---
+GOOGLE_CREDS_PATH = BASE_DIR / 'creds.json'
+GOOGLE_SHEET_NAME = 'ChatLogs' # 請確保你在 Google Drive 有這個名稱的試算表
