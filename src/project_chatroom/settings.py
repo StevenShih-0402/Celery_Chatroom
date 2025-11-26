@@ -25,12 +25,13 @@ SECRET_KEY = 'django-insecure-s$4pihyen@&l%t8o%+qbig&kfpx=4ml#-zsnxp_$6a+sy%+dm^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',                               # ASGI 介面伺服器
     'channels',                             # Websocket (需在 Django 內建 App 之前載入)
     'django.contrib.admin',
     'django.contrib.auth',
@@ -38,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'chat'                                  # 自行建立的 APP
+    'chat',                                 # 自行建立的 APP
+    'celery'
 ]
 
 MIDDLEWARE = [
@@ -130,17 +132,19 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [("redis", 6379)],
         },
     },
 }
 
 # --- Celery 設定 ---
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
+CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_TASK_ALWAYS_EAGER = False # 確保任務真正進入佇列
 
 # --- Google Sheet 設定 (請確保檔案存在) ---
 GOOGLE_CREDS_PATH = BASE_DIR / 'creds.json'
 GOOGLE_SHEET_NAME = 'ChatLogs' # 請確保你在 Google Drive 有這個名稱的試算表
+GOOGLE_SHEET_ID = '1XPTkoeddQmdh2YbxAZiYIKV-X1bBTVCJPBxEC39zPwU'

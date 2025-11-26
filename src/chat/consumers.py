@@ -1,7 +1,9 @@
 import json
+
+from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from datetime import datetime
-# from .tasks import save_message_to_sheet # 即使註釋，也需要保留 import
+from .tasks import save_message_to_sheet # 即使註釋，也需要保留 import
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -33,13 +35,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 1. 呼叫 Celery Task (非同步寫入 Google Sheet)
-        # save_message_to_sheet.apply_async(
-        #     kwargs={
-        #         "username": username,
-        #         "message": message,
-        #         "timestamp": now  # 確保鍵名與 tasks.py 裡的函數參數名稱一致
-        #     }
-        # )
+        # ★ 修正 2: 使用 await sync_to_async 包裝，避免阻塞 ASGI 執行緒
+        # ★ 修正 3: 將 self.room_name 加入 kwargs
+        await sync_to_async(save_message_to_sheet.apply_async)(
+            kwargs={
+                "room_name": self.room_name,  # 確保傳遞房間名稱
+                "username": username,
+                "message": message,
+                "timestamp": now
+            }
+        )
 
         # 2. 廣播訊息給群組內的其他人
         await self.channel_layer.group_send(

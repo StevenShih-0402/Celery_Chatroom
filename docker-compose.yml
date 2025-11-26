@@ -1,18 +1,52 @@
-volumes:
-  redis_data:
-
 services:
-  ##################################################################
-  # [基礎設施] 訊息佇列服務 (Redis) - 作為 Celery Broker
-  # 本地測試需要公開端點，否則其他 API 請求 Redis 暫存資料會被拒絕。
-  # 僅限此專案使用，其他專案若要連線這個 Redis，會回報 kombu.exceptions.OperationalError: [WinError 10061] 無法連線，因為目標電腦拒絕連線。
-  ##################################################################
+  # 1. Redis 服務
   redis:
     image: redis:7-alpine
-    container_name: redis_chatroom
-    ports:
-      - "6380:6379"
+    container_name: chatroom_redis_app
+    expose:
+      - "6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: always
+
+  # 2. Web 服務 (Daphne - Celery Client)
+  web:
+    build:
+      context: .
+      dockerfile: ./compose/Dockerfile # 請確認您的 Dockerfile 路徑是否在此，或改為 Dockerfile
+    container_name: chatroom_web
+    # 注入環境變數，覆蓋 settings.py 的預設值
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: >
+      sh -c "uv run manage.py makemigrations &&
+             uv run manage.py migrate &&
+             daphne -b 0.0.0.0 -p 8000 project_chatroom.asgi:application"
     volumes:
-      - redis_data:/data
-    command: [ "redis-server", "--appendonly", "yes" ]
+      - ./src:/var/www/html
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    restart: always
+
+  # 3. Celery Worker 服務 (任務執行者)
+  celery:
+    build:
+      context: .
+      dockerfile: ./compose/Dockerfile # 請確認您的 Dockerfile 路徑
+    container_name: chatroom_celery
+    # 同樣注入環境變數
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: celery -A project_chatroom worker -l info -P solo
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      - redis
     restart: always
