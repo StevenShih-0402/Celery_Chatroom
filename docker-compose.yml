@@ -1,25 +1,17 @@
 services:
-  # 1. Redis 服務
-  redis:
-    image: redis:7-alpine
-    container_name: chatroom_redis_app
-    expose:
-      - "6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    restart: always
-
   # 2. Web 服務 (Daphne - Celery Client)
   web:
     build:
       context: .
       dockerfile: ./compose/Dockerfile # 請確認您的 Dockerfile 路徑是否在此，或改為 Dockerfile
-    container_name: chatroom_web
+    image: chatroom-web:latest
+    container_name: chat_web # 容器名字不要帶冒號
     # 注入環境變數，覆蓋 settings.py 的預設值
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=global_redis
       - REDIS_PORT=6379
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://global_redis:6379/2
+      - CELERY_RESULT_BACKEND=redis://global_redis:6379/2
     command: >
       sh -c "uv run manage.py makemigrations &&
              uv run manage.py migrate &&
@@ -28,25 +20,27 @@ services:
       - ./src:/var/www/html
     ports:
       - "8000:8000"
-    depends_on:
-      - redis
+    networks:
+      - shared_network
     restart: always
 
   # 3. Celery Worker 服務 (任務執行者)
   celery:
-    build:
-      context: .
-      dockerfile: ./compose/Dockerfile # 請確認您的 Dockerfile 路徑
-    container_name: chatroom_celery
+    image: chatroom-web:latest
+    container_name: chat_celery
     # 同樣注入環境變數
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=global_redis
       - REDIS_PORT=6379
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://global_redis:6379/2
+      - CELERY_RESULT_BACKEND=redis://global_redis:6379/2
     command: celery -A project_chatroom worker -l info -P solo
     volumes:
       - ./src:/var/www/html
-    depends_on:
-      - redis
+    networks:
+      - shared_network
     restart: always
+
+networks:
+  shared_network:
+    external: true
