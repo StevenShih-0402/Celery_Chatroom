@@ -128,7 +128,7 @@ uv sync
 
 1.  **複製專案** (若尚未複製):
     ```bash
-    git clone [https://github.com/StevenShih-0402/Celery_Chatroom.git](https://github.com/StevenShih-0402/Celery_Chatroom.git)
+    git clone https://github.com/StevenShih-0402/Celery_Chatroom.git
     cd Celery_Chatroom
     ```
 
@@ -156,3 +156,4 @@ uv sync
 ## 參考資料
 
 * **完整開發過程分享：** [Django + Channels + Celery 打造即時聊天室 | Google Sheet 數據收集](https://hackmd.io/@StevenShih-0402/Hkk0xp0yWx)
+
